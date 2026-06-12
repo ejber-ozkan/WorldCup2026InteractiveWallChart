@@ -2,6 +2,8 @@
 
 A static, browser-only wall chart for the FIFA World Cup 2026.
 
+Live site: https://ejber-ozkan.github.io/WorldCup2026InteractiveWallChart/
+
 It includes:
 
 - Chronological group-stage fixture entry
