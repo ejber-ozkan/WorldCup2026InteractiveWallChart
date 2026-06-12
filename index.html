@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="An interactive FIFA World Cup 2026 wall chart with local score saving, live group tables, flag thumbnails, and an automated knockout bracket.">
+    <meta name="keywords" content="World Cup 2026, wall chart, fixtures, standings, knockout bracket, football, soccer, FIFA">
+    <meta name="author" content="World Cup 2026 Interactive Wall Chart">
+    <meta name="theme-color" content="#f59e0b">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="World Cup 2026 Interactive Wall Chart">
+    <meta property="og:description" content="Track every World Cup 2026 fixture, enter scores locally, view live group tables, and follow the knockout bracket.">
+    <meta property="og:site_name" content="World Cup 2026 Interactive Wall Chart">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="World Cup 2026 Interactive Wall Chart">
+    <meta name="twitter:description" content="Interactive World Cup 2026 fixtures, group standings, flags, and knockout bracket in one static page.">
+    <title>World Cup 2026 Interactive Wall Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .flag-thumb {
+            display: inline-block;
+            flex: 0 0 auto;
+            object-fit: cover;
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.18);
+            background: rgba(15,23,42,0.85);
+        }
+        .flag-fixture { width: 28px; height: 20px; }
+        .flag-standings { width: 20px; height: 14px; }
+        .flag-knockout { width: 17px; height: 12px; }
+        .flag-champion { width: 34px; height: 24px; }
+        .team-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            min-width: 0;
+            vertical-align: middle;
+        }
+        .team-label-right { justify-content: flex-end; }
+        .team-code {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .team-rank {
+            color: inherit;
+            opacity: 0.82;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased min-h-screen pb-12">
+
+    <header class="bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-900 py-6 px-4 shadow-xl text-center">
+        <h1 class="text-3xl md:text-4xl font-black tracking-wider uppercase">World Cup 2026 Interactive Wall Chart</h1>
+        <p class="text-sm md:text-base font-medium mt-1 opacity-90">Chronological Match Timeline & Automated Bracket Tracker</p>
+    </header>
+
+    <div class="max-w-7xl mx-auto mt-6 px-4">
+        <nav class="flex flex-wrap justify-center gap-2 bg-slate-800 p-2 rounded-xl shadow-lg border border-slate-700">
+            <button onclick="switchTab('fixtures-tab')" id="btn-fixtures-tab" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-bold tracking-wide uppercase transition-all duration-200 bg-amber-500 text-slate-900 shadow-md">
+                📅 Match Timeline
+            </button>
+            <button onclick="switchTab('standings-tab')" id="btn-standings-tab" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-bold tracking-wide uppercase transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-700">
+                📊 Group Standings
+            </button>
+            <button onclick="switchTab('knockout-tab')" id="btn-knockout-tab" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-bold tracking-wide uppercase transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-700">
+                🏆 Knockout Bracket
+            </button>
+            <button onclick="resetData()" class="ml-auto px-4 py-2.5 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors uppercase">
+                Reset Scores
+            </button>
+        </nav>
+    </div>
+
+    <main class="max-w-7xl mx-auto mt-6 px-4">
+
+        <div id="fixtures-tab" class="tab-content active">
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 md:p-6 shadow-xl">
+                <div class="flex flex-wrap items-center justify-between mb-4 gap-4">
+                    <div>
+                        <h2 class="text-xl font-black text-amber-500 uppercase tracking-wider">Group Stage Schedule</h2>
+                        <p class="text-xs text-slate-400">All 72 fixtures ordered exactly by calendar matchday</p>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 font-bold mr-2 uppercase">Filter by Group:</label>
+                        <select id="group-filter" onchange="renderFixtures()" class="bg-slate-900 border border-slate-600 text-amber-400 font-bold text-sm rounded px-3 py-1.5 focus:outline-none focus:border-amber-500">
+                            <option value="ALL">Show All Groups</option>
+                            <option value="A">Group A</option>
+                            <option value="B">Group B</option>
+                            <option value="C">Group C</option>
+                            <option value="D">Group D</option>
+                            <option value="E">Group E</option>
+                            <option value="F">Group F</option>
+                            <option value="G">Group G</option>
+                            <option value="H">Group H</option>
+                            <option value="I">Group I</option>
+                            <option value="J">Group J</option>
+                            <option value="K">Group K</option>
+                            <option value="L">Group L</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300 min-w-[650px]">
+                        <thead>
+                            <tr class="border-b border-slate-700 text-slate-400 font-bold uppercase tracking-wider text-xs bg-slate-900/40">
+                                <th class="p-3 w-16 text-center">G#</th>
+                                <th class="p-3 w-56">Date & Kick-Off Time</th>
+                                <th class="p-3 w-20 text-center">Group</th>
+                                <th class="p-3 text-center">Interactive Matchup Result Scoreboard</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fixtures-table-body" class="divide-y divide-slate-800">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="standings-tab" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="standings-container">
+                </div>
+        </div>
+
+        <div id="knockout-tab" class="tab-content">
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl overflow-x-auto">
+                <div class="mb-6 text-xs bg-slate-900 p-3 rounded-lg border border-slate-700 text-slate-400 max-w-xl">
+                    💡 <span class="text-amber-400 font-bold">Knockout Rules:</span> Enter the scores to advance winners. If a game finishes as a draw, simply click on the winning team's name string to trigger the penalty shootout tiebreaker selection.
+                </div>
+                
+                <div class="flex flex-col gap-8 min-w-[1300px]">
+                    <div class="grid grid-cols-5 gap-4 text-center text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700 pb-2 bg-slate-900/20 py-2 rounded">
+                        <div>Round of 32</div>
+                        <div>Round of 16</div>
+                        <div>Quarter-Finals</div>
+                        <div>Semi-Finals & 3rd Play-off</div>
+                        <div>The Grand Final Match</div>
+                    </div>
+
+                    <div class="grid grid-cols-5 gap-4 items-center">
+                        <div class="space-y-4" id="ko-r32"></div>
+                        
+                        <div class="space-y-12" id="ko-r16"></div>
+
+                        <div class="space-y-28" id="ko-qf"></div>
+
+                        <div class="space-y-48" id="ko-sf"></div>
+
+                        <div class="flex flex-col items-center justify-center space-y-8">
+                            <div class="w-full" id="ko-final"></div>
+                            
+                            <div class="text-center bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 text-slate-950 p-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl w-full border-2 border-yellow-300">
+                                <div class="text-xs opacity-90 mb-1 font-bold">👑 World Cup Champion 👑</div>
+                                <div id="champion-display" class="text-2xl font-black tracking-wider animate-pulse">🏆 UNDECIDED 🏆</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Full exact cron-ordered dataset parsed directly from schedule CSV
+        const defaultGroupMatches = [
+            {"id":1,"group":"A","date":"11/06/2026","day":"Thursday","time":"20:00","t1":"MEX","t2":"RSA","s1":"","s2":""},
+            {"id":2,"group":"A","date":"12/06/2026","day":"Friday","time":"03:00","t1":"KOR","t2":"CZE","s1":"","s2":""},
+            {"id":3,"group":"B","date":"12/06/2026","day":"Friday","time":"20:00","t1":"CAN","t2":"BIH","s1":"","s2":""},
+            {"id":4,"group":"D","date":"13/06/2026","day":"Saturday","time":"02:00","t1":"USA","t2":"PAR","s1":"","s2":""},
+            {"id":5,"group":"B","date":"13/06/2026","day":"Saturday","time":"20:00","t1":"QAT","t2":"SUI","s1":"","s2":""},
+            {"id":6,"group":"C","date":"13/06/2026","day":"Saturday","time":"23:00","t1":"BRA","t2":"MAR","s1":"","s2":""},
+            {"id":7,"group":"C","date":"14/06/2026","day":"Sunday","time":"02:00","t1":"HAI","t2":"SCO","s1":"","s2":""},
+            {"id":8,"group":"D","date":"14/06/2026","day":"Sunday","time":"05:00","t1":"AUS","t2":"TUR","s1":"","s2":""},
+            {"id":9,"group":"E","date":"14/06/2026","day":"Sunday","time":"18:00","t1":"GER","t2":"CUW","s1":"","s2":""},
+            {"id":10,"group":"F","date":"14/06/2026","day":"Sunday","time":"21:00","t1":"NED","t2":"JPN","s1":"","s2":""},
+            {"id":11,"group":"E","date":"15/06/2026","day":"Monday","time":"00:00","t1":"CIV","t2":"ECU","s1":"","s2":""},
+            {"id":12,"group":"F","date":"15/06/2026","day":"Monday","time":"03:00","t1":"SWE","t2":"TUN","s1":"","s2":""},
+            {"id":13,"group":"H","date":"15/06/2026","day":"Monday","time":"17:00","t1":"ESP","t2":"CPV","s1":"","s2":""},
+            {"id":14,"group":"G","date":"15/06/2026","day":"Monday","time":"20:00","t1":"BEL","t2":"EGY","s1":"","s2":""},
+            {"id":15,"group":"H","date":"15/06/2026","day":"Monday","time":"23:00","t1":"KSA","t2":"URU","s1":"","s2":""},
+            {"id":16,"group":"G","date":"16/06/2026","day":"Tuesday","time":"02:00","t1":"IRN","t2":"NZL","s1":"","s2":""},
+            {"id":17,"group":"I","date":"16/06/2026","day":"Tuesday","time":"20:00","t1":"FRA","t2":"SEN","s1":"","s2":""},
+            {"id":18,"group":"I","date":"16/06/2026","day":"Tuesday","time":"23:00","t1":"IRQ","t2":"NOR","s1":"","s2":""},
+            {"id":19,"group":"J","date":"17/06/2026","day":"Wednesday","time":"02:00","t1":"ARG","t2":"ALG","s1":"","s2":""},
+            {"id":20,"group":"J","date":"17/06/2026","day":"Wednesday","time":"05:00","t1":"AUT","t2":"JOR","s1":"","s2":""},
+            {"id":21,"group":"K","date":"17/06/2026","day":"Wednesday","time":"18:00","t1":"POR","t2":"DRC","s1":"","s2":""},
+            {"id":22,"group":"L","date":"17/06/2026","day":"Wednesday","time":"21:00","t1":"ENG","t2":"CRO","s1":"","s2":""},
+            {"id":23,"group":"L","date":"18/06/2026","day":"Thursday","time":"00:00","t1":"GHA","t2":"PAN","s1":"","s2":""},
+            {"id":24,"group":"K","date":"18/06/2026","day":"Thursday","time":"03:00","t1":"UZB","t2":"COL","s1":"","s2":""},
+            {"id":25,"group":"A","date":"18/06/2026","day":"Thursday","time":"17:00","t1":"CZE","t2":"RSA","s1":"","s2":""},
+            {"id":26,"group":"B","date":"18/06/2026","day":"Thursday","time":"20:00","t1":"SUI","t2":"BIH","s1":"","s2":""},
+            {"id":27,"group":"B","date":"18/06/2026","day":"Thursday","time":"23:00","t1":"CAN","t2":"QAT","s1":"","s2":""},
+            {"id":28,"group":"A","date":"19/06/2026","day":"Friday","time":"02:00","t1":"MEX","t2":"KOR","s1":"","s2":""},
+            {"id":29,"group":"D","date":"19/06/2026","day":"Friday","time":"20:00","t1":"USA","t2":"AUS","s1":"","s2":""},
+            {"id":30,"group":"C","date":"19/06/2026","day":"Friday","time":"23:00","t1":"SCO","t2":"MAR","s1":"","s2":""},
+            {"id":31,"group":"C","date":"20/06/2026","day":"Saturday","time":"02:00","t1":"BRA","t2":"HAI","s1":"","s2":""},
+            {"id":32,"group":"D","date":"20/06/2026","day":"Saturday","time":"05:00","t1":"TUR","t2":"PAR","s1":"","s2":""},
+            {"id":33,"group":"F","date":"20/06/2026","day":"Saturday","time":"18:00","t1":"NED","t2":"SWE","s1":"","s2":""},
+            {"id":34,"group":"E","date":"20/06/2026","day":"Saturday","time":"21:00","t1":"GER","t2":"CIV","s1":"","s2":""},
+            {"id":35,"group":"E","date":"21/06/2026","day":"Sunday","time":"01:00","t1":"ECU","t2":"CUW","s1":"","s2":""},
+            {"id":36,"group":"F","date":"21/06/2026","day":"Sunday","time":"05:00","t1":"TUN","t2":"JPN","s1":"","s2":""},
+            {"id":37,"group":"H","date":"21/06/2026","day":"Sunday","time":"17:00","t1":"ESP","t2":"KSA","s1":"","s2":""},
+            {"id":38,"group":"G","date":"21/06/2026","day":"Sunday","time":"20:00","t1":"BEL","t2":"IRN","s1":"","s2":""},
+            {"id":39,"group":"H","date":"21/06/2026","day":"Sunday","time":"23:00","t1":"URU","t2":"CPV","s1":"","s2":""},
+            {"id":40,"group":"G","date":"22/06/2026","day":"Monday","time":"02:00","t1":"NZL","t2":"EGY","s1":"","s2":""},
+            {"id":41,"group":"J","date":"22/06/2026","day":"Monday","time":"18:00","t1":"ARG","t2":"AUT","s1":"","s2":""},
+            {"id":42,"group":"I","date":"22/06/2026","day":"Monday","time":"22:00","t1":"FRA","t2":"IRQ","s1":"","s2":""},
+            {"id":43,"group":"I","date":"23/06/2026","day":"Tuesday","time":"01:00","t1":"NOR","t2":"SEN","s1":"","s2":""},
+            {"id":44,"group":"J","date":"23/06/2026","day":"Tuesday","time":"04:00","t1":"JOR","t2":"ALG","s1":"","s2":""},
+            {"id":45,"group":"K","date":"23/06/2026","day":"Tuesday","time":"18:00","t1":"POR","t2":"UZB","s1":"","s2":""},
+            {"id":46,"group":"L","date":"23/06/2026","day":"Tuesday","time":"21:00","t1":"ENG","t2":"GHA","s1":"","s2":""},
+            {"id":47,"group":"L","date":"24/06/2026","day":"Wednesday","time":"00:00","t1":"PAN","t2":"CRO","s1":"","s2":""},
+            {"id":48,"group":"K","date":"24/06/2026","day":"Wednesday","time":"03:00","t1":"COL","t2":"DRC","s1":"","s2":""},
+            {"id":49,"group":"B","date":"24/06/2026","day":"Wednesday","time":"20:00","t1":"SUI","t2":"CAN","s1":"","s2":""},
+            {"id":50,"group":"B","date":"24/06/2026","day":"Wednesday","time":"20:00","t1":"BIH","t2":"QAT","s1":"","s2":""},
+            {"id":51,"group":"C","date":"24/06/2026","day":"Wednesday","time":"23:00","t1":"MAR","t2":"HAI","s1":"","s2":""},
+            {"id":52,"group":"C","date":"24/06/2026","day":"Wednesday","time":"23:00","t1":"SCO","t2":"BRA","s1":"","s2":""},
+            {"id":53,"group":"A","date":"25/06/2026","day":"Thursday","time":"02:00","t1":"CZE","t2":"MEX","s1":"","s2":""},
+            {"id":54,"group":"A","date":"25/06/2026","day":"Thursday","time":"02:00","t1":"RSA","t2":"KOR","s1":"","s2":""},
+            {"id":55,"group":"E","date":"25/06/2026","day":"Thursday","time":"21:00","t1":"CUW","t2":"CIV","s1":"","s2":""},
+            {"id":56,"group":"E","date":"25/06/2026","day":"Thursday","time":"21:00","t1":"ECU","t2":"GER","s1":"","s2":""},
+            {"id":57,"group":"F","date":"26/06/2026","day":"Friday","time":"00:00","t1":"JPN","t2":"SWE","s1":"","s2":""},
+            {"id":58,"group":"F","date":"26/06/2026","day":"Friday","time":"00:00","t1":"TUN","t2":"NED","s1":"","s2":""},
+            {"id":59,"group":"D","date":"26/06/2026","day":"Friday","time":"03:00","t1":"TUR","t2":"USA","s1":"","s2":""},
+            {"id":60,"group":"D","date":"26/06/2026","day":"Friday","time":"03:00","t1":"PAR","t2":"AUS","s1":"","s2":""},
+            {"id":61,"group":"I","date":"26/06/2026","day":"Friday","time":"20:00","t1":"NOR","t2":"FRA","s1":"","s2":""},
+            {"id":62,"group":"I","date":"26/06/2026","day":"Friday","time":"20:00","t1":"SEN","t2":"IRQ","s1":"","s2":""},
+            {"id":63,"group":"H","date":"27/06/2026","day":"Saturday","time":"01:00","t1":"CPV","t2":"KSA","s1":"","s2":""},
+            {"id":64,"group":"H","date":"27/06/2026","day":"Saturday","time":"01:00","t1":"URU","t2":"ESP","s1":"","s2":""},
+            {"id":65,"group":"G","date":"27/06/2026","day":"Saturday","time":"04:00","t1":"EGY","t2":"IRN","s1":"","s2":""},
+            {"id":66,"group":"G","date":"27/06/2026","day":"Saturday","time":"04:00","t1":"NZL","t2":"BEL","s1":"","s2":""},
+            {"id":67,"group":"L","date":"27/06/2026","day":"Saturday","time":"22:00","t1":"PAN","t2":"ENG","s1":"","s2":""},
+            {"id":68,"group":"L","date":"27/06/2026","day":"Saturday","time":"22:00","t1":"CRO","t2":"GHA","s1":"","s2":""},
+            {"id":69,"group":"K","date":"28/06/2026","day":"Sunday","time":"00:30","t1":"COL","t2":"POR","s1":"","s2":""},
+            {"id":70,"group":"K","date":"28/06/2026","day":"Sunday","time":"00:30","t1":"DRC","t2":"UZB","s1":"","s2":""},
+            {"id":71,"group":"J","date":"28/06/2026","day":"Sunday","time":"03:00","t1":"ALG","t2":"AUT","s1":"","s2":""},
+            {"id":72,"group":"J","date":"28/06/2026","day":"Sunday","time":"03:00","t1":"JOR","t2":"ARG","s1":"","s2":""}
+        ];
+
+        // Exact official Knockout metadata mapped directly from CSV rows 73-104
+        const officialKnockoutMeta = {
+            "73": {"id":73,"date":"28/06/2026","day":"Sunday","time":"20:00","p1":"2A","p2":"2B"},
+            "74": {"id":74,"date":"29/06/2026","day":"Monday","time":"18:00","p1":"1C","p2":"2F"},
+            "75": {"id":75,"date":"29/06/2026","day":"Monday","time":"21:30","p1":"1E","p2":"3rd A/B/C/D/F"},
+            "76": {"id":76,"date":"30/06/2026","day":"Tuesday","time":"02:00","p1":"1F","p2":"2C"},
+            "77": {"id":77,"date":"30/06/2026","day":"Tuesday","time":"18:00","p1":"2E","p2":"2I"},
+            "78": {"id":78,"date":"30/06/2026","day":"Tuesday","time":"22:00","p1":"1I","p2":"3rd C/D/F/G/H"},
+            "79": {"id":79,"date":"01/07/2026","day":"Wednesday","time":"02:00","p1":"1A","p2":"3rd C/E/F/H/I"},
+            "80": {"id":80,"date":"01/07/2026","day":"Wednesday","time":"17:00","p1":"1L","p2":"3rd E/H/I/J/K"},
+            "81": {"id":81,"date":"01/07/2026","day":"Wednesday","time":"21:00","p1":"1G","p2":"3rd A/E/H/I/J"},
+            "82": {"id":82,"date":"02/07/2026","day":"Thursday","time":"01:00","p1":"1D","p2":"3rd B/E/F/I/J"},
+            "83": {"id":83,"date":"02/07/2026","day":"Thursday","time":"20:00","p1":"1H","p2":"2J"},
+            "84": {"id":84,"date":"03/07/2026","day":"Friday","time":"00:00","p1":"2K","p2":"2L"},
+            "85": {"id":85,"date":"03/07/2026","day":"Friday","time":"04:00","p1":"1B","p2":"3rd E/F/G/I/J"},
+            "86": {"id":86,"date":"03/07/2026","day":"Friday","time":"19:00","p1":"2D","p2":"2G"},
+            "87": {"id":87,"date":"03/07/2026","day":"Friday","time":"23:00","p1":"1J","p2":"2H"},
+            "88": {"id":88,"date":"04/07/2026","day":"Saturday","time":"02:30","p1":"1K","p2":"3rd D/E/I/J/L"},
+            // Round of 16
+            "89": {"id":89,"date":"04/07/2026","day":"Saturday","time":"18:00","p1":"Winner 73","p2":"Winner 75"},
+            "90": {"id":90,"date":"04/07/2026","day":"Saturday","time":"22:00","p1":"Winner 74","p2":"Winner 77"},
+            "91": {"id":91,"date":"05/07/2026","day":"Sunday","time":"21:00","p1":"Winner 76","p2":"Winner 78"},
+            "92": {"id":92,"date":"06/07/2026","day":"Monday","time":"01:00","p1":"Winner 79","p2":"Winner 80"},
+            "93": {"id":93,"date":"06/07/2026","day":"Monday","time":"20:00","p1":"Winner 83","p2":"Winner 84"},
+            "94": {"id":94,"date":"07/07/2026","day":"Tuesday","time":"01:00","p1":"Winner 81","p2":"Winner 82"},
+            "95": {"id":95,"date":"07/07/2026","day":"Tuesday","time":"17:00","p1":"Winner 86","p2":"Winner 88"},
+            "96": {"id":96,"date":"07/07/2026","day":"Tuesday","time":"21:00","p1":"Winner 85","p2":"Winner 87"},
+            // Quarters
+            "97": {"id":97,"date":"09/07/2026","day":"Thursday","time":"21:00","p1":"Winner 89","p2":"Winner 90"},
+            "98": {"id":98,"date":"10/07/2026","day":"Friday","time":"20:00","p1":"Winner 93","p2":"Winner 94"},
+            "99": {"id":99,"date":"11/07/2026","day":"Saturday","time":"22:00","p1":"Winner 91","p2":"Winner 92"},
+            "100": {"id":100,"date":"12/07/2026","day":"Sunday","time":"02:00","p1":"Winner 95","p2":"Winner 96"},
+            // Semis
+            "101": {"id":101,"date":"14/07/2026","day":"Tuesday","time":"20:00","p1":"Winner 97","p2":"Winner 98"},
+            "102": {"id":102,"date":"15/07/2026","day":"Wednesday","time":"20:00","p1":"Winner 99","p2":"Winner 100"},
+            // 3rd place & Final
+            "103": {"id":103,"date":"18/07/2026","day":"Saturday","time":"22:00","p1":"Loser 101","p2":"Loser 102"},
+            "104": {"id":104,"date":"19/07/2026","day":"Sunday","time":"20:00","p1":"Winner 101","p2":"Winner 102"}
+        };
+
+        const groupStructure = {
+            A: ['MEX', 'RSA', 'KOR', 'CZE'], B: ['CAN', 'BIH', 'QAT', 'SUI'],
+            C: ['BRA', 'MAR', 'HAI', 'SCO'], D: ['USA', 'PAR', 'TUR', 'AUS'],
+            E: ['GER', 'CUW', 'CIV', 'ECU'], F: ['NED', 'JPN', 'SWE', 'TUN'],
+            G: ['BEL', 'IRN', 'NZL', 'EGY'], H: ['ESP', 'KSA', 'URU', 'CPV'],
+            I: ['FRA', 'SEN', 'IRQ', 'NOR'], J: ['ARG', 'ALG', 'AUT', 'JOR'],
+            K: ['POR', 'DRC', 'UZB', 'COL'], L: ['ENG', 'CRO', 'GHA', 'PAN']
+        };
+
+        const teamMeta = {
+            ALG: { name: 'Algeria', flag: 'dz' }, ARG: { name: 'Argentina', flag: 'ar' },
+            AUS: { name: 'Australia', flag: 'au' }, AUT: { name: 'Austria', flag: 'at' },
+            BEL: { name: 'Belgium', flag: 'be' }, BIH: { name: 'Bosnia and Herzegovina', flag: 'ba' },
+            BRA: { name: 'Brazil', flag: 'br' }, CAN: { name: 'Canada', flag: 'ca' },
+            CIV: { name: 'Cote d Ivoire', flag: 'ci' }, COL: { name: 'Colombia', flag: 'co' },
+            CPV: { name: 'Cape Verde', flag: 'cv' }, CRO: { name: 'Croatia', flag: 'hr' },
+            CUW: { name: 'Curacao', flag: 'cw' }, CZE: { name: 'Czechia', flag: 'cz' },
+            DRC: { name: 'DR Congo', flag: 'cd' }, ECU: { name: 'Ecuador', flag: 'ec' },
+            EGY: { name: 'Egypt', flag: 'eg' }, ENG: { name: 'England', flag: 'gb-eng' },
+            ESP: { name: 'Spain', flag: 'es' }, FRA: { name: 'France', flag: 'fr' },
+            GER: { name: 'Germany', flag: 'de' }, GHA: { name: 'Ghana', flag: 'gh' },
+            HAI: { name: 'Haiti', flag: 'ht' }, IRN: { name: 'Iran', flag: 'ir' },
+            IRQ: { name: 'Iraq', flag: 'iq' }, JOR: { name: 'Jordan', flag: 'jo' },
+            JPN: { name: 'Japan', flag: 'jp' }, KOR: { name: 'Korea Republic', flag: 'kr' },
+            KSA: { name: 'Saudi Arabia', flag: 'sa' }, MAR: { name: 'Morocco', flag: 'ma' },
+            MEX: { name: 'Mexico', flag: 'mx' }, NED: { name: 'Netherlands', flag: 'nl' },
+            NOR: { name: 'Norway', flag: 'no' }, NZL: { name: 'New Zealand', flag: 'nz' },
+            PAN: { name: 'Panama', flag: 'pa' }, PAR: { name: 'Paraguay', flag: 'py' },
+            POR: { name: 'Portugal', flag: 'pt' }, QAT: { name: 'Qatar', flag: 'qa' },
+            RSA: { name: 'South Africa', flag: 'za' }, SCO: { name: 'Scotland', flag: 'gb-sct' },
+            SEN: { name: 'Senegal', flag: 'sn' }, SUI: { name: 'Switzerland', flag: 'ch' },
+            SWE: { name: 'Sweden', flag: 'se' }, TUN: { name: 'Tunisia', flag: 'tn' },
+            TUR: { name: 'Turkiye', flag: 'tr' }, URU: { name: 'Uruguay', flag: 'uy' },
+            USA: { name: 'United States', flag: 'us' }, UZB: { name: 'Uzbekistan', flag: 'uz' }
+        };
+
+        function getTeamName(code) {
+            return teamMeta[code]?.name || code || '';
+        }
+
+        function getFlagSrc(code) {
+            return teamMeta[code]?.flag ? `assets/flags/${teamMeta[code].flag}.svg` : '';
+        }
+
+        function flagImg(code, size = 'fixture') {
+            const src = getFlagSrc(code);
+            if (!src) return '';
+            return `<img src="${src}" alt="${getTeamName(code)} flag" loading="lazy" class="flag-thumb flag-${size}">`;
+        }
+
+        function teamLabel(code, options = {}) {
+            if (!code) return '';
+            const size = options.size || 'fixture';
+            const align = options.align === 'right' ? 'team-label-right' : '';
+            const rank = options.rank ? `<span class="team-rank">${options.rank}</span>` : '';
+            const className = options.className || '';
+            return `<span class="team-label ${align} ${className}" title="${getTeamName(code)}">${rank}${flagImg(code, size)}<span class="team-code">${code}</span></span>`;
+        }
+
+        function initKnockoutStructure() {
+            const template = {};
+            for (const [key, obj] of Object.entries(officialKnockoutMeta)) {
+                template[key] = { ...obj, t1: '', t2: '', s1: '', s2: '', pW: '' };
+            }
+            return template;
+        }
+
+        let matches = JSON.parse(localStorage.getItem('wc_sched_matches')) || defaultGroupMatches;
+        let knockoutData = JSON.parse(localStorage.getItem('wc_sched_ko')) || initKnockoutStructure();
+
+        function saveState() {
+            localStorage.setItem('wc_sched_matches', JSON.stringify(matches));
+            localStorage.setItem('wc_sched_ko', JSON.stringify(knockoutData));
+            calculateAll();
+        }
+
+        function resetData() {
+            if (confirm("Reset all matching score inputs and return to default state?")) {
+                localStorage.removeItem('wc_sched_matches');
+                localStorage.removeItem('wc_sched_ko');
+                matches = JSON.parse(jsonEscape(JSON.stringify(defaultGroupMatches)));
+                knockoutData = initKnockoutStructure();
+                initApp();
+            }
+        }
+
+        function jsonEscape(str) { return str; } // Helper placeholder
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-amber-500', 'text-slate-900', 'shadow-md');
+                btn.classList.add('text-slate-400', 'hover:text-slate-200', 'hover:bg-slate-700');
+            });
+            document.getElementById(tabId).classList.add('active');
+            document.getElementById(`btn-${tabId}`).classList.add('bg-amber-500', 'text-slate-900', 'shadow-md');
+        }
+
+        // Renders Group stage row fixtures chronologically as specified
+        function renderFixtures() {
+            const filter = document.getElementById('group-filter').value;
+            const tbody = document.getElementById('fixtures-table-body');
+            tbody.innerHTML = '';
+
+            const itemsToRender = filter === 'ALL' ? matches : matches.filter(m => m.group === filter);
+
+            itemsToRender.forEach(m => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/40 border-b border-slate-800 text-xs md:text-sm transition-colors">
+                        <td class="p-3 font-mono font-bold text-center text-slate-500">${m.id}</td>
+                        <td class="p-3 font-medium text-slate-400">
+                            <span class="block text-slate-200 font-bold">${m.date}</span>
+                            <span class="text-[11px] opacity-70">${m.day} • ${m.time}</span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <span class="px-2 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-black font-mono text-xs">GP ${m.group}</span>
+                        </td>
+                        <td class="p-3">
+                            <div class="flex items-center justify-center gap-3 max-w-md mx-auto">
+                                <span class="w-24 text-right font-black tracking-wider text-slate-200">${teamLabel(m.t1, { align: 'right', size: 'fixture' })}</span>
+                                <div class="flex items-center gap-1">
+                                    <input type="number" value="${m.s1}" oninput="updateGroupScore(${m.id}, 1, this.value)" class="w-11 bg-slate-900 border border-slate-700 rounded text-center py-1 font-black text-amber-400 focus:outline-none focus:border-amber-500">
+                                    <span class="text-slate-600 text-xs px-0.5 font-bold">vs</span>
+                                    <input type="number" value="${m.s2}" oninput="updateGroupScore(${m.id}, 2, this.value)" class="w-11 bg-slate-900 border border-slate-700 rounded text-center py-1 font-black text-amber-400 focus:outline-none focus:border-amber-500">
+                                </div>
+                                <span class="w-24 text-left font-black tracking-wider text-slate-200">${teamLabel(m.t2, { size: 'fixture' })}</span>
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function updateGroupScore(matchId, idx, value) {
+            const m = matches.find(x => x.id === matchId);
+            if (m) {
+                m[idx === 1 ? 's1' : 's2'] = value !== '' ? parseInt(value) : '';
+                saveState();
+            }
+        }
+
+        function updateKnockoutScore(matchId, idx, value) {
+            if (knockoutData[matchId]) {
+                knockoutData[matchId][idx === 1 ? 's1' : 's2'] = value !== '' ? parseInt(value) : '';
+                knockoutData[matchId].pW = ''; // Flush penalty shoots selection on modifications
+                saveState();
+            }
+        }
+
+        function choosePenaltyWinner(matchId, name) {
+            const m = knockoutData[matchId];
+            if (m && m.s1 !== '' && m.s2 !== '' && m.s1 === m.s2 && (name === m.t1 || name === m.t2)) {
+                m.pW = name;
+                saveState();
+            }
+        }
+
+        // Complete reactive automation parser calculations
+        function calculateAll() {
+            const standingsContainer = document.getElementById('standings-container');
+            if (standingsContainer) standingsContainer.innerHTML = '';
+            
+            const groupQualifiers = {};
+            const wildcardsPool = [];
+
+            // 1. Process League Positions
+            for (const [group, teams] of Object.entries(groupStructure)) {
+                let stats = {};
+                teams.forEach(t => stats[t] = { name: t, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
+
+                let groupCompleted = true;
+                matches.filter(m => m.group === group).forEach(m => {
+                    if (m.s1 !== '' && m.s2 !== '') {
+                        stats[m.t1].mp++; stats[m.t2].mp++;
+                        stats[m.t1].gf += m.s1; stats[m.t1].ga += m.s2;
+                        stats[m.t2].gf += m.s2; stats[m.t2].ga += m.s1;
+                        if (m.s1 > m.s2) { stats[m.t1].w++; stats[m.t1].pts += 3; stats[m.t2].l++; }
+                        else if (m.s1 < m.s2) { stats[m.t2].w++; stats[m.t2].pts += 3; stats[m.t1].l++; }
+                        else { stats[m.t1].d++; stats[m.t1].pts += 1; stats[m.t2].d++; stats[m.t2].pts += 1; }
+                    } else {
+                        groupCompleted = false;
+                    }
+                });
+
+                Object.keys(stats).forEach(t => stats[t].gd = stats[t].gf - stats[t].ga);
+                let sorted = Object.values(stats).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+
+                groupQualifiers[group] = {
+                    first: groupCompleted ? sorted[0].name : '',
+                    second: groupCompleted ? sorted[1].name : '',
+                    third: groupCompleted ? sorted[2].name : ''
+                };
+
+                if (groupCompleted) {
+                    wildcardsPool.push({ name: sorted[2].name, pts: sorted[2].pts, gd: sorted[2].gd, gf: sorted[2].gf });
+                }
+
+                if (standingsContainer) {
+                    let html = `
+                        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-md">
+                            <h3 class="text-base font-black text-amber-500 mb-2 uppercase tracking-wider">Group ${group} Standings</h3>
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead>
+                                    <tr class="border-b border-slate-700 text-slate-400 font-bold opacity-80">
+                                        <th class="py-1 pl-1">Team</th><th class="py-1 text-center">MP</th><th class="py-1 text-center">GD</th><th class="py-1 text-center font-bold text-amber-400">Pts</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                    sorted.forEach((t, i) => {
+                        const style = i < 2 ? 'bg-emerald-950/20 text-emerald-400' : (i === 2 ? 'bg-blue-950/20 text-blue-400' : 'opacity-60');
+                        html += `
+                            <tr class="border-b border-slate-700/40 ${style}">
+                                <td class="py-2 pl-1 font-black">${teamLabel(t.name, { size: 'standings', rank: `${i + 1}.` })}</td>
+                                <td class="py-2 text-center">${t.mp}</td>
+                                <td class="py-2 text-center font-mono ${t.gd > 0 ? 'text-emerald-500' : (t.gd < 0 ? 'text-red-500' : '')}">${t.gd > 0 ? '+' : ''}${t.gd}</td>
+                                <td class="py-2 text-center font-black text-amber-400">${t.pts}</td>
+                            </tr>`;
+                    });
+                    standingsContainer.innerHTML += html + `</tbody></table></div>`;
+                }
+            }
+
+            // Rank available wildcard slots
+            wildcardsPool.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+            const verifiedThirds = wildcardsPool.slice(0, 8).map(x => x.name);
+
+            // 2. Automate Round of 32 Placements (Games 73 to 88)
+            // Explicitly links positions derived from the groups to corresponding game components
+            const r32BindConfig = {
+                "73": { k1: 'A', r1: 'second', k2: 'B', r2: 'second' },
+                "74": { k1: 'C', r1: 'first',  k2: 'F', r2: 'second' },
+                "75": { k1: 'E', r1: 'first',  k2: 'pool', idx: 0 },
+                "76": { k1: 'F', r1: 'first',  k2: 'C', r2: 'second' },
+                "77": { k1: 'E', r1: 'second', k2: 'I', r2: 'second' },
+                "78": { k1: 'I', r1: 'first',  k2: 'pool', idx: 1 },
+                "79": { k1: 'A', r1: 'first',  k2: 'pool', idx: 2 },
+                "80": { k1: 'L', r1: 'first',  k2: 'pool', idx: 3 },
+                "81": { k1: 'G', r1: 'first',  k2: 'pool', idx: 4 },
+                "82": { k1: 'D', r1: 'first',  k2: 'pool', idx: 5 },
+                "83": { k1: 'H', r1: 'first',  k2: 'J', r2: 'second' },
+                "84": { k1: 'K', r1: 'second', k2: 'L', r2: 'second' },
+                "85": { k1: 'B', r1: 'first',  k2: 'pool', idx: 6 },
+                "86": { k1: 'D', r1: 'second', k2: 'G', r2: 'second' },
+                "87": { k1: 'J', r1: 'first',  k2: 'H', r2: 'second' },
+                "88": { k1: 'K', r1: 'first',  k2: 'pool', idx: 7 }
+            };
+
+            for (const [gId, bind] of Object.entries(r32BindConfig)) {
+                knockoutData[gId].t1 = groupQualifiers[bind.k1][bind.r1];
+                if (bind.k2 === 'pool') {
+                    knockoutData[gId].t2 = verifiedThirds[bind.idx] || '';
+                } else {
+                    knockoutData[gId].t2 = groupQualifiers[bind.k2][bind.r2];
+                }
+            }
+
+            // 3. Chain Winners Down the Bracket Hierarchy
+            const getWinner = (id) => {
+                const game = knockoutData[id];
+                if (!game || game.t1 === '' || game.t2 === '') return '';
+                if (game.s1 !== '' && game.s2 !== '') {
+                    if (game.s1 > game.s2) return game.t1;
+                    if (game.s2 > game.s1) return game.t2;
+                    if (game.pW) return game.pW;
+                }
+                return '';
+            };
+
+            const getLoser = (id) => {
+                const game = knockoutData[id];
+                if (!game || game.t1 === '' || game.t2 === '') return '';
+                if (game.s1 !== '' && game.s2 !== '') {
+                    if (game.s1 > game.s2) return game.t2;
+                    if (game.s2 > game.s1) return game.t1;
+                    if (game.pW) return game.pW === game.t1 ? game.t2 : game.t1;
+                }
+                return '';
+            };
+
+            // Round of 16 Connections
+            knockoutData['89'].t1 = getWinner('73'); knockoutData['89'].t2 = getWinner('75');
+            knockoutData['90'].t1 = getWinner('74'); knockoutData['90'].t2 = getWinner('77');
+            knockoutData['91'].t1 = getWinner('76'); knockoutData['91'].t2 = getWinner('78');
+            knockoutData['92'].t1 = getWinner('79'); knockoutData['92'].t2 = getWinner('80');
+            knockoutData['93'].t1 = getWinner('83'); knockoutData['93'].t2 = getWinner('84');
+            knockoutData['94'].t1 = getWinner('81'); knockoutData['94'].t2 = getWinner('82');
+            knockoutData['95'].t1 = getWinner('86'); knockoutData['95'].t2 = getWinner('88');
+            knockoutData['96'].t1 = getWinner('85'); knockoutData['96'].t2 = getWinner('87');
+
+            // Quarter-Finals Connections
+            knockoutData['97'].t1 = getWinner('89'); knockoutData['97'].t2 = getWinner('90');
+            knockoutData['98'].t1 = getWinner('93'); knockoutData['98'].t2 = getWinner('94');
+            knockoutData['99'].t1 = getWinner('91'); knockoutData['99'].t2 = getWinner('92');
+            knockoutData['100'].t1 = getWinner('95'); knockoutData['100'].t2 = getWinner('96');
+
+            // Semi-Finals Connections
+            knockoutData['101'].t1 = getWinner('97'); knockoutData['101'].t2 = getWinner('98');
+            knockoutData['102'].t1 = getWinner('99'); knockoutData['102'].t2 = getWinner('100');
+
+            // Grand Final & 3rd Place Match
+            knockoutData['103'].t1 = getLoser('101'); knockoutData['103'].t2 = getLoser('102'); // 3rd
+            knockoutData['104'].t1 = getWinner('101'); knockoutData['104'].t2 = getWinner('102'); // Final
+
+            // Output Champion Text
+            const champ = getWinner('104');
+            document.getElementById('champion-display').innerHTML = champ
+                ? `<span class="inline-flex items-center justify-center gap-2">${flagImg(champ, 'champion')}<span>${champ}</span></span>`
+                : '🏆 UNDECIDED 🏆';
+
+            renderBracketLayoutView();
+        }
+
+        function renderBracketLayoutView() {
+            const makeCardHtml = (m) => {
+                const draw = (m.s1 !== '' && m.s2 !== '' && m.s1 === m.s2);
+                const style1 = (m.s1 > m.s2 || (draw && m.pW === m.t1)) ? 'text-yellow-400 font-black' : 'text-slate-200';
+                const style2 = (m.s2 > m.s1 || (draw && m.pW === m.t2)) ? 'text-yellow-400 font-black' : 'text-slate-200';
+
+                return `
+                    <div class="bg-slate-900 border border-slate-700 rounded-xl p-2.5 shadow-lg space-y-2 text-xs relative">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-1 text-[10px] text-slate-500 font-bold font-mono">
+                            <span>G${m.id}</span>
+                            <span>${m.day.substring(0,3)} ${m.date.substring(0,5)} • ${m.time}</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-1">
+                            <button onclick="choosePenaltyWinner('${m.id}', '${m.t1}')" class="font-bold uppercase tracking-wider w-[140px] text-left transition-all ${style1} ${draw ? 'underline decoration-dashed cursor-pointer hover:text-amber-300' : 'cursor-default'}" title="${m.t1 ? getTeamName(m.t1) : m.p1}">
+                                ${m.t1 ? teamLabel(m.t1, { size: 'knockout' }) : `<span class="text-slate-600 font-normal lowercase italic">${m.p1}</span>`}
+                            </button>
+                            <input type="number" value="${m.s1}" ${(!m.t1 || !m.t2) ? 'disabled' : ''} oninput="updateKnockoutScore('${m.id}', 1, this.value)" class="w-8 bg-slate-800 border border-slate-600 rounded text-center py-0.5 font-bold text-amber-400 focus:outline-none focus:border-amber-500 disabled:opacity-20 text-xs">
+                        </div>
+                        <div class="flex items-center justify-between gap-1">
+                            <button onclick="choosePenaltyWinner('${m.id}', '${m.t2}')" class="font-bold uppercase tracking-wider w-[140px] text-left transition-all ${style2} ${draw ? 'underline decoration-dashed cursor-pointer hover:text-amber-300' : 'cursor-default'}" title="${m.t2 ? getTeamName(m.t2) : m.p2}">
+                                ${m.t2 ? teamLabel(m.t2, { size: 'knockout' }) : `<span class="text-slate-600 font-normal lowercase italic">${m.p2}</span>`}
+                            </button>
+                            <input type="number" value="${m.s2}" ${(!m.t1 || !m.t2) ? 'disabled' : ''} oninput="updateKnockoutScore('${m.id}', 2, this.value)" class="w-8 bg-slate-800 border border-slate-600 rounded text-center py-0.5 font-bold text-amber-400 focus:outline-none focus:border-amber-500 disabled:opacity-20 text-xs">
+                        </div>
+                    </div>`;
+            };
+
+            // Dynamic view node injections
+            document.getElementById('ko-r32').innerHTML = '';
+            for(let i=73; i<=88; i++) document.getElementById('ko-r32').innerHTML += makeCardHtml(knockoutData[i]);
+
+            document.getElementById('ko-r16').innerHTML = '';
+            for(let i=89; i<=96; i++) document.getElementById('ko-r16').innerHTML += makeCardHtml(knockoutData[i]);
+
+            document.getElementById('ko-qf').innerHTML = '';
+            for(let i=97; i<=100; i++) document.getElementById('ko-qf').innerHTML += makeCardHtml(knockoutData[i]);
+
+            document.getElementById('ko-sf').innerHTML = `
+                <div class="space-y-4">
+                    <div class="text-center text-[10px] uppercase font-black tracking-widest text-amber-500/80 mb-1">Semi Finals</div>
+                    ${makeCardHtml(knockoutData[101])}
+                    <div class="py-4"></div>
+                    ${makeCardHtml(knockoutData[102])}
+                </div>
+                <div class="pt-10 space-y-1">
+                    <div class="text-center text-[10px] uppercase font-black tracking-widest text-blue-400 mb-1">3rd Place Match</div>
+                    ${makeCardHtml(knockoutData[103])}
+                </div>
+            `;
+
+            document.getElementById('ko-final').innerHTML = `
+                <div class="text-center text-[11px] uppercase font-black tracking-widest text-yellow-500 mb-2">The Final Match</div>
+                ${makeCardHtml(knockoutData[104])}
+            `;
+        }
+
+        function initApp() {
+            renderFixtures();
+            calculateAll();
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
