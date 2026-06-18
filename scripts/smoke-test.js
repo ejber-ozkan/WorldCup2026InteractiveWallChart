@@ -67,6 +67,10 @@ vm.createContext(context);
 vm.runInContext(scripts[0], context, { filename: 'index.html' });
 context.window.onload();
 
+if (!elements.get('ko-r32').innerHTML.includes('flag-knockout')) {
+  throw new Error('Projected Round of 32 flags were not rendered before group completion');
+}
+
 for (let id = 1; id <= 72; id += 1) {
   context.updateGroupScore(id, 1, 1);
   context.updateGroupScore(id, 2, 0);

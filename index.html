@@ -134,6 +134,7 @@
             <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl overflow-x-auto">
                 <div class="mb-6 text-xs bg-slate-900 p-3 rounded-lg border border-slate-700 text-slate-400 max-w-xl">
                     💡 <span class="text-amber-400 font-bold">Knockout Rules:</span> Enter the scores to advance winners. If a game finishes as a draw, simply click on the winning team's name string to trigger the penalty shootout tiebreaker selection.
+                    <span class="block mt-1">Round of 32 teams are projected from the current group standings as soon as scores are entered.</span>
                 </div>
                 
                 <div class="flex flex-col gap-8 min-w-[1300px]">
@@ -454,7 +455,6 @@
                 let stats = {};
                 teams.forEach(t => stats[t] = { name: t, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
 
-                let groupCompleted = true;
                 matches.filter(m => m.group === group).forEach(m => {
                     if (m.s1 !== '' && m.s2 !== '') {
                         stats[m.t1].mp++; stats[m.t2].mp++;
@@ -463,8 +463,6 @@
                         if (m.s1 > m.s2) { stats[m.t1].w++; stats[m.t1].pts += 3; stats[m.t2].l++; }
                         else if (m.s1 < m.s2) { stats[m.t2].w++; stats[m.t2].pts += 3; stats[m.t1].l++; }
                         else { stats[m.t1].d++; stats[m.t1].pts += 1; stats[m.t2].d++; stats[m.t2].pts += 1; }
-                    } else {
-                        groupCompleted = false;
                     }
                 });
 
@@ -472,14 +470,12 @@
                 let sorted = Object.values(stats).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
 
                 groupQualifiers[group] = {
-                    first: groupCompleted ? sorted[0].name : '',
-                    second: groupCompleted ? sorted[1].name : '',
-                    third: groupCompleted ? sorted[2].name : ''
+                    first: sorted[0].name,
+                    second: sorted[1].name,
+                    third: sorted[2].name
                 };
 
-                if (groupCompleted) {
-                    wildcardsPool.push({ name: sorted[2].name, pts: sorted[2].pts, gd: sorted[2].gd, gf: sorted[2].gf });
-                }
+                wildcardsPool.push({ name: sorted[2].name, pts: sorted[2].pts, gd: sorted[2].gd, gf: sorted[2].gf });
 
                 if (standingsContainer) {
                     let html = `
