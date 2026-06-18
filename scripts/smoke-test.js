@@ -67,8 +67,41 @@ vm.createContext(context);
 vm.runInContext(scripts[0], context, { filename: 'index.html' });
 context.window.onload();
 
+function groupOrder(group) {
+  const html = elements.get('standings-container').innerHTML;
+  const groupHtml = html.match(new RegExp(`Group ${group} Standings[\\s\\S]*?<\\/table>`));
+  if (!groupHtml) throw new Error(`Group ${group} standings were not rendered`);
+  return [...groupHtml[0].matchAll(/<span class="team-code">([^<]+)<\/span>/g)].map((match) => match[1]);
+}
+
 if (!elements.get('ko-r32').innerHTML.includes('flag-knockout')) {
   throw new Error('Projected Round of 32 flags were not rendered before group completion');
+}
+
+context.updateGroupScore(1, 1, 0); // MEX 0-1 RSA
+context.updateGroupScore(1, 2, 1);
+context.updateGroupScore(2, 1, 0); // KOR 0-0 CZE
+context.updateGroupScore(2, 2, 0);
+context.updateGroupScore(25, 1, 0); // CZE 0-1 RSA
+context.updateGroupScore(25, 2, 1);
+context.updateGroupScore(28, 1, 5); // MEX 5-0 KOR
+context.updateGroupScore(28, 2, 0);
+context.updateGroupScore(53, 1, 0); // CZE 0-5 MEX
+context.updateGroupScore(53, 2, 5);
+context.updateGroupScore(54, 1, 0); // RSA 0-3 KOR
+context.updateGroupScore(54, 2, 3);
+
+if (groupOrder('A')[0] !== 'RSA') {
+  throw new Error('Head-to-head winner should rank above a team with better overall goal difference');
+}
+
+if (!elements.get('standings-container').innerHTML.includes('Conduct/FIFA ranking may decide')) {
+  throw new Error('Unresolved conduct/FIFA ranking tiebreak should be highlighted');
+}
+
+context.chooseGroupTiebreak('B', 'QAT');
+if (groupOrder('B')[0] !== 'QAT') {
+  throw new Error('Manual group tiebreak winner should rank first in an unresolved tie');
 }
 
 for (let id = 1; id <= 72; id += 1) {

@@ -355,10 +355,12 @@
 
         let matches = JSON.parse(localStorage.getItem('wc_sched_matches')) || defaultGroupMatches;
         let knockoutData = JSON.parse(localStorage.getItem('wc_sched_ko')) || initKnockoutStructure();
+        let groupTieOverrides = JSON.parse(localStorage.getItem('wc_sched_group_tiebreaks')) || {};
 
         function saveState() {
             localStorage.setItem('wc_sched_matches', JSON.stringify(matches));
             localStorage.setItem('wc_sched_ko', JSON.stringify(knockoutData));
+            localStorage.setItem('wc_sched_group_tiebreaks', JSON.stringify(groupTieOverrides));
             calculateAll();
         }
 
@@ -366,8 +368,10 @@
             if (confirm("Reset all matching score inputs and return to default state?")) {
                 localStorage.removeItem('wc_sched_matches');
                 localStorage.removeItem('wc_sched_ko');
+                localStorage.removeItem('wc_sched_group_tiebreaks');
                 matches = JSON.parse(jsonEscape(JSON.stringify(defaultGroupMatches)));
                 knockoutData = initKnockoutStructure();
+                groupTieOverrides = {};
                 initApp();
             }
         }
@@ -442,6 +446,108 @@
             }
         }
 
+        function chooseGroupTiebreak(group, name) {
+            if (name) {
+                groupTieOverrides[group] = name;
+            } else {
+                delete groupTieOverrides[group];
+            }
+            saveState();
+        }
+
+        function getHeadToHeadStats(teamNames) {
+            const teamSet = new Set(teamNames);
+            const h2h = {};
+            teamNames.forEach(name => h2h[name] = { pts: 0, gd: 0, gf: 0 });
+
+            matches.forEach(m => {
+                if (!teamSet.has(m.t1) || !teamSet.has(m.t2) || m.s1 === '' || m.s2 === '') return;
+
+                h2h[m.t1].gf += m.s1;
+                h2h[m.t1].gd += m.s1 - m.s2;
+                h2h[m.t2].gf += m.s2;
+                h2h[m.t2].gd += m.s2 - m.s1;
+
+                if (m.s1 > m.s2) h2h[m.t1].pts += 3;
+                else if (m.s2 > m.s1) h2h[m.t2].pts += 3;
+                else {
+                    h2h[m.t1].pts += 1;
+                    h2h[m.t2].pts += 1;
+                }
+            });
+
+            return h2h;
+        }
+
+        function splitByValue(teams, getValue) {
+            const buckets = new Map();
+            teams.forEach(team => {
+                const value = getValue(team);
+                if (!buckets.has(value)) buckets.set(value, []);
+                buckets.get(value).push(team);
+            });
+            return [...buckets.entries()]
+                .sort((a, b) => b[0] - a[0])
+                .map(([, group]) => group);
+        }
+
+        function applyManualTiebreak(group, teams) {
+            const selected = groupTieOverrides[group];
+            if (!selected || !teams.some(team => team.name === selected)) return teams;
+            return [...teams].sort((a, b) => {
+                if (a.name === selected) return -1;
+                if (b.name === selected) return 1;
+                return 0;
+            });
+        }
+
+        function rankGroupTeams(group, stats) {
+            let unresolvedGroups = [];
+            const pointGroups = splitByValue(Object.values(stats), team => team.pts);
+            const ranked = [];
+
+            pointGroups.forEach(pointGroup => {
+                if (pointGroup.length === 1) {
+                    ranked.push(pointGroup[0]);
+                    return;
+                }
+
+                let groups = [pointGroup];
+                const criteria = [
+                    subgroup => {
+                        const h2h = getHeadToHeadStats(subgroup.map(team => team.name));
+                        return team => h2h[team.name].pts;
+                    },
+                    subgroup => {
+                        const h2h = getHeadToHeadStats(subgroup.map(team => team.name));
+                        return team => h2h[team.name].gd;
+                    },
+                    subgroup => {
+                        const h2h = getHeadToHeadStats(subgroup.map(team => team.name));
+                        return team => h2h[team.name].gf;
+                    },
+                    () => team => team.gd,
+                    () => team => team.gf
+                ];
+
+                criteria.forEach(makeCriterion => {
+                    groups = groups.flatMap(subgroup => {
+                        if (subgroup.length <= 1) return [subgroup];
+                        return splitByValue(subgroup, makeCriterion(subgroup));
+                    });
+                });
+
+                groups.forEach(subgroup => {
+                    if (subgroup.length > 1) {
+                        unresolvedGroups.push(subgroup.map(team => team.name));
+                    }
+                    ranked.push(...applyManualTiebreak(group, subgroup));
+                });
+            });
+
+            return { ranked, unresolvedGroups };
+        }
+
         // Complete reactive automation parser calculations
         function calculateAll() {
             const standingsContainer = document.getElementById('standings-container');
@@ -467,7 +573,7 @@
                 });
 
                 Object.keys(stats).forEach(t => stats[t].gd = stats[t].gf - stats[t].ga);
-                let sorted = Object.values(stats).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+                let { ranked: sorted, unresolvedGroups } = rankGroupTeams(group, stats);
 
                 groupQualifiers[group] = {
                     first: sorted[0].name,
@@ -498,7 +604,22 @@
                                 <td class="py-2 text-center font-black text-amber-400">${t.pts}</td>
                             </tr>`;
                     });
-                    standingsContainer.innerHTML += html + `</tbody></table></div>`;
+                    html += `</tbody></table>`;
+
+                    if (unresolvedGroups.length) {
+                        const unresolvedTeams = [...new Set(unresolvedGroups.flat())];
+                        html += `
+                            <div class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+                                <div class="font-bold uppercase tracking-wide">Conduct/FIFA ranking may decide this tie</div>
+                                <div class="mt-1 text-amber-100/80">Cards are not tracked here. Select a manual tiebreak winner if conduct score should affect the projected order.</div>
+                                <select onchange="chooseGroupTiebreak('${group}', this.value)" class="mt-2 w-full rounded border border-amber-500/30 bg-slate-950 px-2 py-1 text-amber-100 focus:outline-none focus:border-amber-400">
+                                    <option value="">No manual tiebreak winner</option>
+                                    ${unresolvedTeams.map(name => `<option value="${name}" ${groupTieOverrides[group] === name ? 'selected' : ''}>${name} - ${getTeamName(name)}</option>`).join('')}
+                                </select>
+                            </div>`;
+                    }
+
+                    standingsContainer.innerHTML += html + `</div>`;
                 }
             }
 
